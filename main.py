@@ -35,12 +35,11 @@ def set_env(seed):
     torch.backends.cudnn.deterministic = True
 
 
-def train_cl(cl_model, optimizer_cl, baseline_classifier, optimizer_baseline, x1, x2, adj_1, adj_2, criterion, idx_train, cur_split, label):
+def train_cl(cl_model, optimizer_cl, baseline_classifier,x1, x2, adj_1, adj_2, criterion, idx_train, cur_split, label):
     cl_model.train()
     baseline_classifier.eval()
 
     optimizer_cl.zero_grad()
-    #optimizer_baseline.zero_grad()
 
 
     emb1 = cl_model.get_emb1(x1, adj_1)
@@ -53,15 +52,13 @@ def train_cl(cl_model, optimizer_cl, baseline_classifier, optimizer_baseline, x1
     kl_loss = F.kl_div(log_pred1/5, log_pred2/5, reduction='batchmean')
     cl_loss = cl_model.RINCE(x1, adj_1, x2, adj_2, criterion, label)
     loss = 0.04 * cl_loss + class_loss + 0.06 * kl_loss
-    #print(loss)
 
-    loss.backward(retain_graph=True)#retain_graph=True
+    loss.backward(retain_graph=True)
     optimizer_cl.step()
-    #optimizer_baseline.step()
 
-    return cl_loss.item()#, loss.item()#, main_loss.item(), total_loss.item()
+    return cl_loss.item()
 
-def train_GCNModel(baseline_classifier, optimizer_baseline, optimizer_cl, cl_model, feature, label, idx_train, adj_1, cur_split):
+def train_GCNModel(baseline_classifier, optimizer_baseline, cl_model, feature, label, idx_train, adj_1, cur_split):
     baseline_classifier.train()
     cl_model.eval()
 
@@ -71,10 +68,8 @@ def train_GCNModel(baseline_classifier, optimizer_baseline, optimizer_cl, cl_mod
     loss_train = F.cross_entropy(output[idx_train[:, cur_split]], label[idx_train[:,cur_split]].long())
 
     baseline_classifier.zero_grad()
-    #optimizer_cl.zero_grad()
     loss_train.backward()
     optimizer_baseline.step()
-    #optimizer_cl.step()
     return loss_train
 
 def main(args):
@@ -109,9 +104,8 @@ def main(args):
         criterion = ContrastiveRanking(args, feature, label, len(torch.unique(label)), n_feat, int(args.n_hid/2)).to(device)
         optimizer_cl = torch.optim.Adam(cl_model.parameters(), lr=args.lr_clas, weight_decay=args.w_decay)
         baseline_classifier = GCN_Classifier(ninput=int(args.n_hid/2),
-                                             # 因为encoder1和encoder2的输出是64(args.embedding_dim = 64)
                                              nclass=len(torch.unique(label)), dropout=args.droprate).to(device)
-        optimizer_baseline = torch.optim.Adam(baseline_classifier.parameters(),  # GCN分类器
+        optimizer_baseline = torch.optim.Adam(baseline_classifier.parameters(),
                                               lr=args.lr_gcl, weight_decay=args.w_decay)
 
         cur_split = 0 if (idx_train.shape[1] == 1) else (trial % idx_train.shape[1])
@@ -121,9 +115,8 @@ def main(args):
 
             train_time_list = []
             train_epoch_begin_time = time.perf_counter()
-            #, class_loss
-            cl_loss = train_cl(cl_model, optimizer_cl, baseline_classifier, optimizer_baseline, x1, x2, adj_1, adj_2, criterion, idx_train, cur_split, label)
-            class_loss = train_GCNModel(baseline_classifier, optimizer_baseline, optimizer_cl, cl_model, feature, label, idx_train,
+            cl_loss = train_cl(cl_model, optimizer_cl, baseline_classifier, x1, x2, adj_1, adj_2, criterion, idx_train, cur_split, label)
+            class_loss = train_GCNModel(baseline_classifier, optimizer_baseline, cl_model, feature, label, idx_train,
                                         adj_1, cur_split)
             embed = cl_model.get_emb1(feature, adj_1)
             output = baseline_classifier(embed)
@@ -171,20 +164,20 @@ if __name__ == "__main__":
 
     parser.add_argument('-ntrials', type=int, default=10)
     parser.add_argument('-eval_freq', type=int, default=50)
-    parser.add_argument('-epochs', type=int, default=500)#400
+    parser.add_argument('-epochs', type=int, default=500)
     parser.add_argument('-lr_gcl', type=float, default=0.01)
-    parser.add_argument('-lr_clas', type=float, default=0.01)
+    parser.add_argument('-lr_clas', type=float, default=0.001)
     parser.add_argument('-w_decay', type=float, default=0.)
     parser.add_argument('-droprate', type=float, default=0.005)
     parser.add_argument('-sparse', type=int, default=1)
-    parser.add_argument('-dataset', type=str, default='DGA-200')
+    parser.add_argument('-dataset', type=str, default='DGA-2000')
     parser.add_argument('--enable_bias', type=bool, default=False, help='default as False')
     parser.add_argument('--A_split', type=bool, default=False, help='default as False')
 
 
     # GCN Module - Hyper-param
-    parser.add_argument('-nlayers', type=int, default=4)
-    parser.add_argument('-n_hid', type=int, default=256)#128
+    parser.add_argument('-nlayers', type=int, default=2)
+    parser.add_argument('-n_hid', type=int, default=128)
     parser.add_argument('-cl_batch_size', type=int, default=0)
 
     # stuff for ranking

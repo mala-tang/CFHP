@@ -21,14 +21,12 @@ def split_batch(init_list, batch_size):
     end_list.append(init_list[-count:]) if count != 0 else end_list
     return end_list
 
-#通过gso_typ对权重矩阵分别进行带自环或不带自环（renorm/norm）对称归一化（sym）或随机游走归一化（rw）
-#lap表示拉普拉斯矩阵
+
 def get_adj(dir_adj, gso_type):
     if sp.issparse(dir_adj):
         id = sp.identity(dir_adj.shape[0], format='csc')
         # Symmetrizing an adjacency matrix
         adj = dir_adj + dir_adj.T.multiply(dir_adj.T > dir_adj) - dir_adj.multiply(dir_adj.T > dir_adj)
-        # adj = 0.5 * (dir_adj + dir_adj.transpose())
 
         if gso_type == 'sym_renorm_adj' or gso_type == 'rw_renorm_adj' \
                 or gso_type == 'sym_renorm_lap' or gso_type == 'rw_renorm_lap':

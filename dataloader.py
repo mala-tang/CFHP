@@ -10,12 +10,9 @@ topk = 3
 #通过余弦相似构建相似图和不相似图返回带权邻接矩阵
 def construt_graph(features, labels, nnodes):
 
-    #dist = cosine_similarity(features)
-    #计算节点间相似性
     dist = F.cosine_similarity(features.detach().unsqueeze(1), features.detach().unsqueeze(0), dim=-1)
     weights = torch.zeros((nnodes, nnodes))
     idx_hm, idx_ht = [], []
-    #获取前K个相似节点下标
     k1 = 3
     for i in range(dist.shape[0]):
         idx = np.argpartition(dist[i, :], -(k1 + 1))[-(k1 + 1):]
@@ -23,7 +20,6 @@ def construt_graph(features, labels, nnodes):
 
     counter_hm = 0
     edges_hm = 0
-    #计算相似图的异质性并给邻接矩阵赋值
     for i, v in enumerate(idx_hm):
         for Nv in v:
             if Nv == i:
@@ -102,9 +98,7 @@ def get_split(features, labels):
 
 def load_data():
 
-    # data = np.loadtxt('./data/ieee.csv', dtype=float)
-    data = np.loadtxt('./data/github.csv', dtype=float)
-    data = np.unique(data, axis=0)
+    data = np.loadtxt('./data/ieee.csv', dtype=float)
 
     feature = data[:, :-1]
     label = data[:, -1]
@@ -116,8 +110,8 @@ def load_data():
     weights = construt_graph(feature, label, nnodes)
 
     # idx_train, idx_test = get_split(feature, label)
-    idx_train = np.load('./data/github/train_mask.npy')
-    idx_test = np.load('./data/github/test_mask.npy')
+    idx_train = np.load('./data/ieee/train_mask.npy')
+    idx_test = np.load('./data/ieee/test_mask.npy')
     idx_train = torch.tensor(idx_train)
     idx_test = torch.tensor(idx_test)
 
